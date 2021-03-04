@@ -37,7 +37,7 @@ int button_states[4];
 int last_active_time[4] = {0, 0, 0, 0};
 
 // State of the selector potentiometer
-bool just_made_selection = false;
+bool just_made_selection = true;
 
 bool didnt_print_endgame_screen = true;
 
