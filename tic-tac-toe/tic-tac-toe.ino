@@ -35,8 +35,10 @@ bool game_over = false;
 // Store the  button states (for debouncing presses)
 int button_states[4];
 int last_active_time[4] = {0, 0, 0, 0};
-int select_state;
+
+// State of the selection
 int last_select_time = 0;
+int select_state;
 
 bool didnt_print_endgame_screen = true;
 
@@ -72,6 +74,7 @@ void setup() {
 void loop() {
   if(!game_over) {
     check_for_move();
+    game_over = is_game_over();
   } else {
     // If winner is unset
     if (winner == '\0') {
@@ -114,20 +117,23 @@ void loop() {
 /* Waits for the current player to choose a square.
    Adjusts the number of moves and writes their move to the board. */
 void check_for_move() {
-  // If the top three buttons are on at once, the player is making a selection
-  if (select_state) {
-    num_moves++;
-    board[row_cursor][col_cursor] = player;
-        
-    if (is_game_over()) {
+  // Check that the player is selecting their current cursor location
+  if (digitalRead(BTN_PINS[LEFT]) && digitalRead(BTN_PINS[UP]) && digitalRead(BTN_PINS[RIGHT])) {
+    // Make sure the previous player turned off the button before the current player went
+    if (!select_state && (millis() - last_select_time) > BUTTON_COOLDOWN_MS) {
+      num_moves++;
+      last_select_time = millis();
+      board[row_cursor][col_cursor] = player;
+      
+      swap_player();
       place_cursor();
-    } else {
-      game_over = true;
+      print_board();
+      return;
     }
-  
-    print_board();
-    swap_player();
-    return;
+
+    select_state = true;
+  } else {
+    select_state = false;
   }
   
   // In all other cases, check if one of the buttons just got activated during this loop
@@ -148,6 +154,8 @@ void move_cursor(int dir) { // TODO: replace `int` with `Direction`
   int old_col = col_cursor;
   int old_row = row_cursor;
 
+  // Continue searching for the new cursor until you land on an empty spot
+  // or return to your original spot
   do {
     switch (dir) {
       case UP:
@@ -172,14 +180,16 @@ void move_cursor(int dir) { // TODO: replace `int` with `Direction`
         col_cursor = (col_cursor + 1) % 3;
         break;
     }
-  } while (board[row_cursor][col_cursor] == 'X' || board[row_cursor][col_cursor] == 'O');
+  } while (board[row_cursor][col_cursor] != ' ' && !(row_cursor == old_row && col_cursor == old_col));
 
-  board[old_row][old_col] = ' ';
-  board[row_cursor][col_cursor] = '_';
+  if (board[row_cursor][col_cursor] == ' ') {
+    board[old_row][old_col] = ' ';
+    board[row_cursor][col_cursor] = '_';
+  }
   print_board();
 }
 
-/* Places the x and y cursors in the next empty square */
+/* Places the row and column cursors in the next empty square */
 void place_cursor() {
   for (row_cursor = 0; row_cursor < 3; row_cursor++) {
     for (col_cursor = 0; col_cursor < 3; col_cursor++) {
@@ -237,14 +247,6 @@ void update_buttons() {
     if (is_active) {
       last_active_time[btn] = curr_time;
     }
-  }
-
-  // TODO: refactor
-  bool is_active = digitalRead(SELECT_PIN) == HIGH && (curr_time - last_select_time) > BUTTON_COOLDOWN_MS;
-  select_state = is_active;
-
-  if (is_active) {
-    last_select_time = curr_time;
   }
 }
 
@@ -315,7 +317,7 @@ char calculate_winner() {
 /* Whether the game is still active */
 bool is_game_over() {
   char curr_winner = calculate_winner();
-  return num_moves < 9 && curr_winner != 'X' && curr_winner != 'O';
+  return num_moves >= 9 || curr_winner == 'X' || curr_winner == 'O';
 }
 
 
