@@ -16,6 +16,7 @@ typedef enum { LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3} Direction;
 const int BTN_PINS[4] = {6, 5, 7, 4};
 const int ROW_PINS[3] = {10, 9, 8};
 const int COL_PINS[3] = {13, 12, 11};
+const int SELECT_PIN = A0;
 
 /* State Variables
   ============================================== */
@@ -35,17 +36,17 @@ bool game_over = false;
 int button_states[4];
 int last_active_time[4] = {0, 0, 0, 0};
 
-// State of the selection
-int last_select_time = 0;
+// State of the selector potentiometer
 int select_state;
 
 bool didnt_print_endgame_screen = true;
 
 /* Settings
   ============================================== */
-const int SHORT_BLINK_TIME_MS = 600;
-const int LONG_BLINK_TIME_MS = 1500;
+const int SHORT_BLINK_TIME_MS = 300;
+const int LONG_BLINK_TIME_MS = 1200;
 const int BUTTON_COOLDOWN_MS = 800;
+const int SELECT_THRESHOLD = 612; // Any value from 0 to 1024
 
 /* Initialization
   ============================================== */
@@ -117,11 +118,13 @@ void loop() {
    Adjusts the number of moves and writes their move to the board. */
 void check_for_move() {
   // Check that the player is selecting their current cursor location
-  if (digitalRead(BTN_PINS[LEFT])) {
+  Serial.print("Pot Value: ");
+  Serial.print(analogRead(SELECT_PIN));
+  Serial.println();
+  if (analogRead(SELECT_PIN) < SELECT_THRESHOLD) {
     // Make sure the previous player turned off the button before the current player went
-    if (!select_state && (millis() - last_select_time) > BUTTON_COOLDOWN_MS) {
+    if (!select_state) {
       num_moves++;
-      last_select_time = millis();
       board[row_cursor][col_cursor] = player;
       
       swap_player();
