@@ -38,6 +38,7 @@ int last_active_time[4] = {0, 0, 0, 0};
 
 // State of the selector potentiometer
 bool just_made_selection = true;
+bool just_untrapped = true;
 
 bool didnt_print_endgame_screen = true;
 
@@ -46,7 +47,10 @@ bool didnt_print_endgame_screen = true;
 const int SHORT_BLINK_TIME_MS = 300;
 const int LONG_BLINK_TIME_MS = 1200;
 const int BUTTON_COOLDOWN_MS = 800;
-const int SELECT_THRESHOLD = 612; // Any value from 0 to 1023
+const int SELECT_THRESHOLD = 200; // Any value from 0 to 1023
+
+// 
+const int UNTRAP_THRESHOLD = 900; // Any value from 0 to 1023
 
 /* Initialization
   ============================================== */
@@ -135,6 +139,20 @@ void check_for_move() {
   } else {
     just_made_selection = false;
   }
+
+  if (analogRead(SELECT_PIN) > UNTRAP_THRESHOLD) {
+    bool old_untrapped_state = just_untrapped;
+    just_untrapped = true;
+    
+    // Make sure the previous player turned off the button before the current player went
+    if (!old_untrapped_state) {
+      untrap_cursor();
+      print_board();
+      return;
+    }
+  } else {
+    just_untrapped = false;
+  }
   
   // In all other cases, check if one of the buttons just got activated during this loop
   // (the button_states variable is smart about only turning on after a button is freshly activated)
@@ -198,6 +216,20 @@ void place_cursor() {
         return;
       }
     }
+  }
+}
+
+/* Untraps the cursor if it can't move left or right */
+void untrap_cursor() {
+  board[row_cursor][col_cursor] = ' ';
+  for (; row_cursor < 3; row_cursor++) {
+    for (col_cursor = col_cursor + 1; col_cursor < 3; col_cursor++) {
+      if (board[row_cursor][col_cursor] == ' ') {
+        board[row_cursor][col_cursor] = '_';
+        return;
+      }
+    }
+    col_cursor = -1;
   }
 }
 
