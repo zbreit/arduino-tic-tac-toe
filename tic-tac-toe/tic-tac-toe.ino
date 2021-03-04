@@ -14,7 +14,6 @@ typedef enum { LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3} Direction;
   ============================================== */
 // Should be assigned so enum values work (i.e., 0th value is the LEFT pin, 1st value is the RIGHT pin, ...)
 const int BTN_PINS[4] = {6, 5, 7, 4};
-const int SELECT_PIN = 3;
 const int ROW_PINS[3] = {10, 9, 8};
 const int COL_PINS[3] = {13, 12, 11};
 
@@ -44,8 +43,8 @@ bool didnt_print_endgame_screen = true;
 
 /* Settings
   ============================================== */
-const int SHORT_BLINK_TIME_MS = 400;
-const int LONG_BLINK_TIME_MS = 800;
+const int SHORT_BLINK_TIME_MS = 600;
+const int LONG_BLINK_TIME_MS = 1500;
 const int BUTTON_COOLDOWN_MS = 800;
 
 /* Initialization
@@ -118,7 +117,7 @@ void loop() {
    Adjusts the number of moves and writes their move to the board. */
 void check_for_move() {
   // Check that the player is selecting their current cursor location
-  if (digitalRead(BTN_PINS[LEFT]) && digitalRead(BTN_PINS[UP]) && digitalRead(BTN_PINS[RIGHT])) {
+  if (digitalRead(BTN_PINS[LEFT])) {
     // Make sure the previous player turned off the button before the current player went
     if (!select_state && (millis() - last_select_time) > BUTTON_COOLDOWN_MS) {
       num_moves++;
@@ -217,11 +216,11 @@ void update_matrix() {
 
         // O is long blinking
         case 'O':
-          digitalWrite(COL_PINS[col], get_blink_state(SHORT_BLINK_TIME_MS));
+          digitalWrite(COL_PINS[col], get_blink_state(LONG_BLINK_TIME_MS));
 
         // _ (the cursor) is long blinking
         case '_':
-          digitalWrite(COL_PINS[col], get_blink_state(LONG_BLINK_TIME_MS));
+          digitalWrite(COL_PINS[col], get_blink_state(SHORT_BLINK_TIME_MS));
 
         // Default is off
         default:
