@@ -1,10 +1,10 @@
 /**
-   Binary Tic Tac Toe Program for ENEE459V Mini Project 1
-   By Bashai Lyngdoh and Zachary Breit
-
-   For this program we used an 8x8 LED matrix and 4 buttons
-   to create a tic-tac-toe game.
-*/
+ * Binary Tic Tac Toe Program for ENEE459V Mini Project 1
+ * By Bashai Lyngdoh and Zachary Breit
+ * 
+ * For this program we used an 8x8 LED matrix and 4 buttons
+ * to create a tic-tac-toe game.
+ * ============================================ */
 
 /* Data Structures
   ============================================== */
@@ -20,7 +20,7 @@ const int SELECT_PIN = A0;
 
 /* State Variables
   ============================================== */
-// Values can either be 'X', 'O', ' ' (empty), or '_' (cursor)
+// Entries can either be 'X', 'O', ' ' (empty), or '_' (cursor)
 char board[3][3];
 
 // Row and Col position in the board where the user is hovering
@@ -28,8 +28,14 @@ int col_cursor, row_cursor;
 
 // Either 'X' or 'O'
 char player = 'X';
+
+// Current winner (used in the end game to avoid recalculating the winner
 char winner = '\0';
+
+// Number of moves played
 int num_moves = 0;
+
+// Whether the game is completed
 bool game_over = false;
 
 // Store the  button states (for debouncing presses)
@@ -88,6 +94,7 @@ void loop() {
     // If X's and O's tie, exit the program
     if (winner != 'X' && winner != 'O') {
       Serial.println("Tie game! Hit the 'reset' button to play again.");
+      Serial.flush();
       exit(0);
     }
 
@@ -121,48 +128,43 @@ void loop() {
 /* Waits for the current player to choose a square.
    Adjusts the number of moves and writes their move to the board. */
 void check_for_move() {
-  // Check that the player is selecting their current cursor location
-  if (analogRead(SELECT_PIN) < SELECT_THRESHOLD) {
-    bool old_select_state = just_made_selection;
-    just_made_selection = true;
+  // Check if the player is selecting their current cursor location
+  bool old_selection_state = just_made_selection;
+  just_made_selection = analogRead(SELECT_PIN) < SELECT_THRESHOLD;
+  if (just_made_selection && !old_selection_state) {
+    ++num_moves;
+    board[row_cursor][col_cursor] = player;
     
-    // Make sure the previous player turned off the button before the current player went
-    if (!old_select_state) {
-      num_moves++;
-      board[row_cursor][col_cursor] = player;
-      
-      swap_player();
-      place_cursor();
-      print_board();
-      return;
-    }
-  } else {
-    just_made_selection = false;
+    place_cursor();
+    print_move();
+    print_board();
+    swap_player();
+    return;
   }
 
-  if (analogRead(SELECT_PIN) > UNTRAP_THRESHOLD) {
-    bool old_untrapped_state = just_untrapped;
-    just_untrapped = true;
-    
-    // Make sure the previous player turned off the button before the current player went
-    if (!old_untrapped_state) {
-      untrap_cursor();
-      print_board();
-      return;
-    }
-  } else {
-    just_untrapped = false;
+  // Check if the user is sending in a fresh untrap request
+  bool old_trap_state = just_untrapped;
+  just_untrapped = analogRead(SELECT_PIN) > UNTRAP_THRESHOLD;
+  if (just_untrapped && ! old_trap_state) {
+    Serial.println("Just untrapped cursor:");
+    untrap_cursor();
+    print_board();
+    return;
   }
   
   // In all other cases, check if one of the buttons just got activated during this loop
   // (the button_states variable is smart about only turning on after a button is freshly activated)
   if(button_states[LEFT]) {
+    Serial.println("Moved cursor left:");
     move_cursor(LEFT);
   } else if (button_states[RIGHT]) {
+    Serial.println("Moved cursor right:");
     move_cursor(RIGHT);
   } else if (button_states[UP]) {
+    Serial.println("Moved cursor up:");
     move_cursor(UP);
   } else if (button_states[DOWN]) {
+    Serial.println("Moved cursor down:");
     move_cursor(DOWN);
   }
 }
@@ -200,14 +202,13 @@ void move_cursor(int dir) { // TODO: replace `int` with `Direction`
     }
   } while (board[row_cursor][col_cursor] != ' ' && !(row_cursor == old_row && col_cursor == old_col));
 
-  if (board[row_cursor][col_cursor] == ' ') {
-    board[old_row][old_col] = ' ';
-    board[row_cursor][col_cursor] = '_';
-  }
+  board[old_row][old_col] = ' ';
+  board[row_cursor][col_cursor] = '_';
   print_board();
 }
 
-/* Places the row and column cursors in the next empty square */
+/* Places the row and column cursors in the next empty square. 
+  Does nothing if the board is filled up */
 void place_cursor() {
   for (row_cursor = 0; row_cursor < 3; row_cursor++) {
     for (col_cursor = 0; col_cursor < 3; col_cursor++) {
@@ -219,17 +220,14 @@ void place_cursor() {
   }
 }
 
-/* Untraps the cursor if it can't move left or right */
+/* Untraps the cursor if it can't move horizontally or vertically */
 void untrap_cursor() {
-  board[row_cursor][col_cursor] = ' ';
-  for (; row_cursor < 3; row_cursor++) {
-    for (col_cursor = col_cursor + 1; col_cursor < 3; col_cursor++) {
-      if (board[row_cursor][col_cursor] == ' ') {
-        board[row_cursor][col_cursor] = '_';
-        return;
-      }
-    }
-    col_cursor = -1;
+  if (num_moves < 8) {
+    int old_row = row_cursor;
+    int old_col = col_cursor;
+    board[row_cursor][col_cursor] = '?'; // Fill the board location w/ some junk value (not a space)
+    place_cursor();
+    board[old_row][old_col] = ' ';
   }
 }
 
@@ -280,18 +278,6 @@ void update_buttons() {
       last_active_time[btn] = curr_time;
     }
   }
-}
-
-/* Prints the board to Serial */
-void print_board() {
-  for (int row = 0; row < 3; row++) {
-    for (int col = 0; col < 3; col++) {
-      Serial.print(board[row][col]);
-      Serial.print(' ');
-    }
-    Serial.println();
-  }
-  Serial.println();
 }
 
 /* Empties the board */
@@ -382,6 +368,30 @@ void draw_o() {
       }
     }
     board[1][1] = ' ';
+}
+
+/* Prints the board to Serial */
+void print_board() {
+  
+  for (int row = 0; row < 3; row++) {
+    for (int col = 0; col < 3; col++) {
+      Serial.print(board[row][col]);
+      Serial.print(' ');
+    }
+    Serial.println();
+  }
+  Serial.println();
+}
+
+/* Prints the move that was just made */
+void print_move() {
+  Serial.print(player);
+  Serial.println(" just made a move.");
+  if (!is_game_over()) {
+    Serial.print("Now it's ");
+    Serial.print(player == 'X' ? 'O' : 'X');
+    Serial.println("'s turn:");
+  }
 }
 
 /* Debugging function for button states */
