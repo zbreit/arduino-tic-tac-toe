@@ -37,7 +37,7 @@ int button_states[4];
 int last_active_time[4] = {0, 0, 0, 0};
 
 // State of the selector potentiometer
-int select_state;
+int select_state = LOW;
 
 bool didnt_print_endgame_screen = true;
 
@@ -46,7 +46,7 @@ bool didnt_print_endgame_screen = true;
 const int SHORT_BLINK_TIME_MS = 300;
 const int LONG_BLINK_TIME_MS = 1200;
 const int BUTTON_COOLDOWN_MS = 800;
-const int SELECT_THRESHOLD = 612; // Any value from 0 to 1024
+const int SELECT_THRESHOLD = 612; // Any value from 0 to 1023
 
 /* Initialization
   ============================================== */
@@ -119,6 +119,7 @@ void loop() {
 void check_for_move() {
   // Check that the player is selecting their current cursor location
   Serial.print("Pot Value: ");
+  Serial.print(select_state);
   Serial.print(analogRead(SELECT_PIN));
   Serial.println();
   if (analogRead(SELECT_PIN) < SELECT_THRESHOLD) {
@@ -126,6 +127,7 @@ void check_for_move() {
     if (!select_state) {
       num_moves++;
       board[row_cursor][col_cursor] = player;
+      select_state = true;
       
       swap_player();
       place_cursor();
